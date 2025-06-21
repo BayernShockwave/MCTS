@@ -1,0 +1,48 @@
+NODE: 每个NODE代表一个车站/控制点/道岔, 还包含该节点在EB/WB两个方向上分配的轨道Track
+
+LINK: 两两NODE之间的连接关系, 包含方向(EB/WB)和距离,
+
+MINIMUM_RUN_TIME: 表示某趟列车通过某个LINK时, 某个动作组合所对应的最小运行时间,
+                  动作组合有PASS PASS/PASS STOP/STOP PASS/STOP STOP四种, 其中PASS表示不停车直接通过该NODE, STOP表示在该NODE停车,
+                  所以MINIMUM_RUN_TIME所含数据条目是LINK的四倍
+
+
+HEADWAY: 表示某趟列车以某个动作组合通过某个LINK时, 与后一趟列车以某个动作组合通过该LINK所需的最小间隔时间,
+         由于对于某趟列车以某个动作组合通过某个LINK而言, 后一趟列车都有四种不同的动作组合,
+         所以HEADWAY所含数据条目是MINIMUM_RUN_TIME的四倍
+
+PADTLL_WCHAPXR_TARGET_FREQUENCY: 从PADTLL向WB和从WCHAPXR向EB的连续两趟列车在一天中8个时间段内对应的期望最大时间间隔,
+                                 当跨越两个时间段则使用其中较大的值
+                                 解释: WB-PADTLL-核心区域-WCHAPXR-EB,
+                                      由于列车抵达终点后会掉头, 通过限制离开核心区域的最大时间间隔,
+                                      从而控制进入核心区域的连续两趟列车之间的时间间隔
+
+BASE_STATION_VALUE: 每一个车站(不包括WESTBOURNE PARK CS)在一天中11个时间段内对应的BSV, BSV用于计算惩罚值
+
+TRAIN_HEADER: 以唯一ID表示某趟列车的信息, 包含方向方向(EB/WB), 类型(OO/EE), 起始时间与地点
+              其中OO表示客用, EE表示空车
+
+TRAIN_SCHEDULE: ID对应的列车的时刻表, 即从起点到终点每个站点的信息, 以SEQ顺序排列,
+                包含进站时间, 出站时间, 在该站所分配的轨道及动作(PASS/STOP)
+
+ALL_DUTY_START_END: 以唯一ID表示某个车辆的任务信息, 包含起始时间与地点
+                    其中9个FERRY为平衡性的调车任务
+                    列车与车辆的区别: 列车是服务, 车辆是实体, 例如车辆实体RSDuty_1承担5C07RL#1, 2C07RL#1, 5C58RL#1三个列车服务
+
+ROLLING_STOCK_DUTY: ID对应的车辆在ALL_DUTY_START_END记录的起始时间内, 在每个小的时间段内具体的任务信息,
+                    包含每个小的时间段的起始时间与地点, 任务类型和所承担的列车服务,
+                    其中任务类型有RESERVE, TRAIN, CHANGE_END, SPARE四种,
+                    RESERVE表示整日在某个NODE上的备用车辆,
+                    TRAIN表示运行中的车辆, 即正在承担某个列车服务,
+                    CHANGE_END表示某个车辆在结束某个任务并开始下一个任务之间的必要时间, 例如抵达终点NODE后调头
+                    SPARE表示某个车辆在休息, 例如在终点NODE调头后休整一段时间再开始下一个任务
+
+EXTENDED_RUN_TIME: 所有列车某个特定LINK在某个特定时间段的额外运行时间, 例如因需要减速而产生
+
+LATE_DEPARTURE: ID对应的列车在发车前晚点的时间
+
+REALIZED_SCHEDULE: ID对应的列车实际运行的时刻表
+
+STATION_EXTENDED_DWELL: 所有列车在某个特定NODE在某个特定时间段的额外停留时间, 适用于两个方向
+
+TRAIN_EXTENDED_DWELL: ID对应的列车在某个特定NODE的额外停留时间, 与时间段无关
