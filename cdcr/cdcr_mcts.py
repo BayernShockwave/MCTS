@@ -36,13 +36,13 @@ class ConflictState:
                     actions.append(cra)
             # RRT
             if conflict['place'] == 'NODE' and conflict['detail'] != 'N/A':
-                node_info = NODE[NODE['NODE'] == conflict['start_node']]
+                node_info = NODE[NODE['CODE'] == conflict['start_node']]
                 available_tracks = []
                 for _, row in node_info.iterrows():
-                    if row['Track_EB'] and row['Track_EB'] != conflict['detail']:
-                        available_tracks.append(row['Track_EB'])
-                    if row['Track_WB'] and row['Track_WB'] != conflict['detail']:
-                        available_tracks.append(row['Track_WB'])
+                    if row['EB_TRACKS'] and row['EB_TRACKS'] != conflict['detail']:
+                        available_tracks.append(row['EB_TRACKS'])
+                    if row['WB_TRACKS'] and row['WB_TRACKS'] != conflict['detail']:
+                        available_tracks.append(row['WB_TRACKS'])
                 for train_id in [conflict['course_id_1'], conflict['course_id_2']]:
                     for track in available_tracks:
                         resolution_time = self.calculate_track_change_time(conflict['detail'], track)
