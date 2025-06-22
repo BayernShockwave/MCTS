@@ -7,11 +7,16 @@ import numpy as np
 
 
 class ConflictState:
-    def __init__(self, realized_schedule: pd.DataFrame, conflicts: List[Dict], applied_cras: List[CRA] = None, depth: int = 0):
+    def __init__(self, realized_schedule: pd.DataFrame, conflicts: List[Dict], applied_cras: List[CRA] = None, depth: int = 0, time_horizon: float = None):
         self.realized_schedule = realized_schedule.copy()
         self.conflicts = conflicts
         self.applied_cras = applied_cras if applied_cras is not None else []
         self.depth = depth
+        # 仅关注30分钟内的冲突
+        if time_horizon is None and conflicts:
+            self.time_horizon = min(c['start_secs'] for c in conflicts) + 1800
+        else:
+            self.time_horizon = time_horizon
         self.terminal = len(conflicts) == 0 or depth >= 10
         self.legal_actions_cache = None
 
@@ -93,14 +98,15 @@ class ConflictState:
                     for location in cra.target_locations:
                         mask = (new_schedule['TRAIN_COURSE_ID'] == train_id) & (new_schedule['NODE'] == location)
                         new_schedule.loc[mask, 'TRACK'] = new_track
-        detector = ConflictDetector(new_schedule)
+        detector = ConflictDetector(new_schedule, self.time_horizon)
         new_conflicts = detector.detect_all_conflicts()
         new_applied_cras = self.applied_cras + [cra]
         new_state = ConflictState(
             new_schedule,
             new_conflicts,
             new_applied_cras,
-            self.depth + 1
+            self.depth + 1,
+            self.time_horizon
         )
         return new_state
 
@@ -154,6 +160,8 @@ class ConflictDetector:
                                 if not (dep1 <= arr2 or arr1 >= dep2):
                                     overlap_start = max(arr1, arr2)
                                     overlap_end = min(dep1, dep2)
+                                    if self.time_horizon is not None and overlap_start > self.time_horizon:
+                                        continue
                                     conflict = {
                                         'course_id_1': trains[i],
                                         'course_id_2': trains[j],
@@ -184,14 +192,16 @@ class ConflictDetector:
                 if pd.isna(end_time):
                     min_time = self.get_minimum_run_time(current['NODE'], next_stop['NODE'])
                     end_time = start_time + min_time
-                    link_occupations.append({
-                        'train_id': train_id,
-                        'start_node': current['NODE'],
-                        'end_node': next_stop['NODE'],
-                        'start_time': start_time,
-                        'end_time': end_time,
-                        'seq': current['SEQ']
-                    })
+                if self.time_horizon is not None and start_time > self.time_horizon:
+                    continue
+                link_occupations.append({
+                    'train_id': train_id,
+                    'start_node': current['NODE'],
+                    'end_node': next_stop['NODE'],
+                    'start_time': start_time,
+                    'end_time': end_time,
+                    'seq': current['SEQ']
+                })
         for i in range(len(link_occupations)):
             for j in range(i + 1, len(link_occupations)):
                 occ1 = link_occupations[i]
@@ -208,6 +218,8 @@ class ConflictDetector:
                         conflict_start = occ2['end_time']
                     required_headway = self.get_required_headway(occ1['start_node'], occ1['end_node'])
                     if headway < required_headway:
+                        if self.time_horizon is not None and conflict_start > self.time_horizon:
+                            continue
                         conflict = {
                             'course_id_1': occ1['train_id'],
                             'course_id_2': occ2['train_id'],
