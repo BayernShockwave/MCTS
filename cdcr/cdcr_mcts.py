@@ -257,10 +257,13 @@ class MCTSNode:
 
     def best_child(self, c_param: float = 1.4) -> 'MCTSNode':
         choices_weights = []
-        for child in self.children.values():
+        children_list = list(self.children.values())
+        for child in children_list:
             avg_value = child.value / child.visits
             exploration = c_param * np.sqrt((2 * np.log(self.visits)) / child.visits)
             choices_weights.append(avg_value + exploration)
+        best_idx = np.argmax(choices_weights)
+        return children_list[best_idx]
 
     def expand(self) -> 'MCTSNode':
         action = self.untried_actions.pop()
