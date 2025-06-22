@@ -124,8 +124,9 @@ class ConflictState:
 
 
 class ConflictDetector:
-    def __init__(self, schedule: pd.DataFrame):
+    def __init__(self, schedule: pd.DataFrame, time_horizon: float = None):
         self.schedule = schedule
+        self.time_horizon = time_horizon
         self.train_groups = schedule.groupby('TRAIN_COURSE_ID')
         self.node_groups = schedule.groupby('NODE')
 
