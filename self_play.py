@@ -1,4 +1,4 @@
-from cdcr.cdcr_mcts import MCTS
+from cdcr_mcts import MCTS
 import numpy as np
 from collections import deque
 from tqdm import tqdm

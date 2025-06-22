@@ -1,9 +1,9 @@
 from pathlib import Path
 import pandas as pd
 import numpy as np
-from cdcr.cdcr_mcts import ConflictState, MCTS
-from cdcr.neural_network import NeuralNetWrapper
-from cdcr.self_play import Coach
+from cdcr_mcts import ConflictState, MCTS
+from neural_network import NeuralNetWrapper
+from self_play import Coach
 
 BASE_DIR = Path(__file__).parent
 SCHEDULE_OUTPUT_PATH = BASE_DIR / "data" / "realized_schedule.xlsx"
