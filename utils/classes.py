@@ -3,22 +3,6 @@ from typing import List, Dict
 
 
 @dataclass
-class ECS:
-    name: str
-    applicable_to: List[str]  # ['NODE', 'LINK'] or ['NODE]
-    penalty: float
-
-
-ECS_DEFINITIONS = {
-    'STT': ECS('STT', ['NODE', 'LINK'], 10),
-    'RRT': ECS('RRT', ['NODE'], 20),
-    'TCT': ECS('TCT', ['NODE'], 160),
-    'PCT': ECS('PCT', ['NODE'], 80),
-    'ETT': ECS('ETT', ['NODE'], 40),
-}
-
-
-@dataclass
 class CRA:
     ecs_list: List[str]
     target_trains: List[str]
