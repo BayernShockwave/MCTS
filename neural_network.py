@@ -5,44 +5,91 @@ import numpy as np
 import os
 
 
-class ConflictResolutionNet(nn.Module):
-    def __init__(self, input_size: int = 512, hidden_size: int = 256, action_size: int = 1000):
-        super(ConflictResolutionNet, self).__init__()
-        self.fc1 = nn.Linear(input_size, hidden_size)
+class ResidualBlock(nn.Module):
+    def __init__(self, hidden_size: int, dropout_rate: float = 0.1):
+        super(ResidualBlock, self).__init__()
+        self.fc1 = nn.Linear(hidden_size, hidden_size)
         self.fc2 = nn.Linear(hidden_size, hidden_size)
-        self.fc3 = nn.Linear(hidden_size, hidden_size)
+        self.bn1 = nn.BatchNorm1d(hidden_size)
+        self.bn2 = nn.BatchNorm1d(hidden_size)
+        self.dropout = nn.Dropout(dropout_rate)
+
+    def forward(self, x):
+        residual = x
+        out = F.gelu(self.bn1(self.fc1(x)))
+        out = self.dropout(out)
+        out = self.bn2(self.fc2(out))
+        out += residual
+        return F.gelu(out)
+
+
+class ConflictResolutionNet(nn.Module):
+    def __init__(self, input_size: int = 512, hidden_size: int = 512, action_size: int = 1000, num_blocks: int = 4, dropout_rate: float = 0.1):
+        super(ConflictResolutionNet, self).__init__()
+        self.input_projection = nn.Sequential(
+            nn.Linear(input_size, hidden_size),
+            nn.LayerNorm(hidden_size),
+            nn.GELU(),
+            nn.Dropout(dropout_rate)
+        )
+        self.residual_blocks = nn.ModuleList([
+            ResidualBlock(hidden_size, dropout_rate) for _ in range(num_blocks)
+        ])
         self.policy_head = nn.Sequential(
+            nn.Linear(hidden_size, hidden_size),
+            nn.LayerNorm(hidden_size),
+            nn.GELU(),
+            nn.Dropout(dropout_rate),
             nn.Linear(hidden_size, hidden_size // 2),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Linear(hidden_size // 2, action_size)
         )
         self.value_head = nn.Sequential(
             nn.Linear(hidden_size, hidden_size // 2),
-            nn.ReLU(),
-            nn.Linear(hidden_size // 2, 1),
+            nn.LayerNorm(hidden_size // 2),
+            nn.GELU(),
+            nn.Dropout(dropout_rate),
+            nn.Linear(hidden_size // 2, hidden_size // 4),
+            nn.GELU(),
+            nn.Linear(hidden_size // 4, 1),
             nn.Tanh()
         )
-        self.bn1 = nn.BatchNorm1d(hidden_size)
-        self.bn2 = nn.BatchNorm1d(hidden_size)
-        self.bn3 = nn.BatchNorm1d(hidden_size)
+        self.initialize_weights()
+
+    def initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, (nn.BatchNorm1d, nn.LayerNorm)):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
 
     def forward(self, x):
-        x = F.relu(self.bn1(self.fc1(x)))
-        x = F.relu(self.bn2(self.fc2(x)))
-        x = F.relu(self.bn3(self.fc3(x)))
+        x = self.input_projection(x)
+        for block in self.residual_blocks:
+            x = block(x)
         p = self.policy_head(x)
         v = self.value_head(x)
         return F.log_softmax(p, dim=1), v
 
 
 class NeuralNetWrapper:
-    def __init__(self, input_size: int = 512, hidden_size: int = 256, action_size: int = 1000):
+    def __init__(self, input_size: int = 512, hidden_size: int = 512, action_size: int = 1000):
         self.nnet = ConflictResolutionNet(input_size, hidden_size, action_size)
         self.input_size = input_size
         self.action_size = action_size
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.nnet.to(self.device)
-        self.optimizer = torch.optim.Adam(self.nnet.parameters(), lr=0.001)
+        self.optimizer = torch.optim.AdamW(
+            self.nnet.parameters(),
+            lr=0.001,
+            betas=(0.9, 0.999),
+            eps=1e-8,
+            weight_decay=1e-4,
+            amsgrad=True
+        )
 
     def train(self, examples):
         self.nnet.train()
